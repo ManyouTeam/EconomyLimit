@@ -1,0 +1,46 @@
+error:
+  args: "&#98FB98[EconomyLimit] &cWrong command usage."
+  in-game: "&#98FB98[EconomyLimit] &cYou must use this command in game."
+  miss-permission: "&#98FB98[EconomyLimit] &cYou do not have permission to do this."
+  invalid-number: "&#98FB98[EconomyLimit] &cInvalid amount."
+  no-economy: "&#98FB98[EconomyLimit] &cNo Vault economy provider was found."
+  withdraw-positive: "&#98FB98[EconomyLimit] &cThe withdraw amount must be greater than 0."
+  bank-insufficient: "&#98FB98[EconomyLimit] &cYour virtual bank balance is not enough."
+  withdraw-limited: "&#98FB98[EconomyLimit] &cThis withdraw would exceed your earning limit."
+  withdraw-failed: "&#98FB98[EconomyLimit] &cWithdraw failed: {reason}"
+  reload-failed: "&#98FB98[EconomyLimit] &cReload failed: {reason}"
+
+plugin:
+  reloaded: "&#98FB98[EconomyLimit] &fPlugin reloaded."
+
+command:
+  raw: "{text}"
+  help-console:
+    - "&#98FB98/economylimit status <player>"
+    - "&#98FB98/economylimit debug"
+    - "&#98FB98/economylimit reload"
+
+status:
+  title: "&#98FB98[EconomyLimit] &f{player}"
+  bank: "&7Virtual bank: &e{amount}"
+  rule: "&7{rule}: &e{current}&7/&6{limit} &8| &7Remaining &a{remaining} &8| &7Next reset &f{next_reset}"
+  rule-unlimited: "&7{rule}: &aUnlimited"
+  never: "Never"
+
+rules:
+  daily:
+    name: "Daily earnings"
+  weekly:
+    name: "Weekly earnings"
+
+bank:
+  transferred: "&#98FB98[EconomyLimit] &fExceeded earnings &e{amount} &fstored in your virtual bank."
+  withdrew: "&#98FB98[EconomyLimit] &fWithdrew &e{amount} &ffrom your virtual bank."
+
+debug:
+  title: "&#98FB98&lEconomyLimit Debug"
+  provider: "&7Vault provider: &f{value}"
+  injection-status: "&7Injection status: &f{value}"
+  bridge-hits: "&7Bridge hits: &f{value}"
+  last-hit: "&7Last hit: &f{value}"
+  last-error: "&7Last error: &f{value}"

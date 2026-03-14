@@ -1,0 +1,46 @@
+error:
+  args: "&#98FB98[EconomyLimit] &c命令参数不正确。"
+  in-game: "&#98FB98[EconomyLimit] &c这个命令只能由玩家执行。"
+  miss-permission: "&#98FB98[EconomyLimit] &c你没有权限执行这个操作。"
+  invalid-number: "&#98FB98[EconomyLimit] &c金额格式不正确。"
+  no-economy: "&#98FB98[EconomyLimit] &c没有检测到 Vault 经济实现。"
+  withdraw-positive: "&#98FB98[EconomyLimit] &c提取金额必须大于 0。"
+  bank-insufficient: "&#98FB98[EconomyLimit] &c你的虚拟银行余额不足。"
+  withdraw-limited: "&#98FB98[EconomyLimit] &c本次提取会超过当前收益上限。"
+  withdraw-failed: "&#98FB98[EconomyLimit] &c提取失败: {reason}"
+  reload-failed: "&#98FB98[EconomyLimit] &c重载失败: {reason}"
+
+plugin:
+  reloaded: "&#98FB98[EconomyLimit] &f插件已重载。"
+
+command:
+  raw: "{text}"
+  help-console:
+    - "&#98FB98/economylimit status <玩家>"
+    - "&#98FB98/economylimit debug"
+    - "&#98FB98/economylimit reload"
+
+status:
+  title: "&#98FB98[EconomyLimit] &f{player}"
+  bank: "&7虚拟银行: &e{amount}"
+  rule: "&7{rule}: &e{current}&7/&6{limit} &8| &7剩余 &a{remaining} &8| &7下次重置 &f{next_reset}"
+  rule-unlimited: "&7{rule}: &a无限制"
+  never: "永不"
+
+rules:
+  daily:
+    name: "每日收益"
+  weekly:
+    name: "每周收益"
+
+bank:
+  transferred: "&#98FB98[EconomyLimit] &f超出收益上限的 &e{amount} &f已转入虚拟银行。"
+  withdrew: "&#98FB98[EconomyLimit] &f已从虚拟银行提取 &e{amount}&f。"
+
+debug:
+  title: "&#98FB98&lEconomyLimit 调试"
+  provider: "&7Vault 提供者: &f{value}"
+  injection-status: "&7注入状态: &f{value}"
+  bridge-hits: "&7Bridge 命中次数: &f{value}"
+  last-hit: "&7最后一次命中: &f{value}"
+  last-error: "&7最后一次错误: &f{value}"

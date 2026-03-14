@@ -1,0 +1,53 @@
+# EconomyLimit by @PQguanfang
+#
+# Read the wiki here: [NOT DONE YET]
+
+timezone: system
+auto-save-minutes: 5
+notify-on-bank-transfer: true
+
+config-files:
+  language: zh_CN
+  per-player-language: true
+  force-parse-mini-message: true
+
+database:
+  jdbc-url: "jdbc:sqlite:plugins/EconomyLimit/economylimit.db"
+  jdbc-class: "org.sqlite.JDBC"
+  properties:
+    user: ""
+    password: ""
+
+rules:
+  daily:
+    display-name: "每日收益"
+    reset:
+      mode: DAILY
+      time: "00:00"
+    limits:
+      - limit: 50000
+      - condition:
+          type: PERMISSION
+          value: economylimit.rule.daily.vip
+        limit: 100000
+      - condition:
+          type: PERMISSION
+          value: economylimit.rule.daily.bypass
+        limit: -1
+
+  weekly:
+    display-name: "每周收益"
+    reset:
+      mode: WEEKLY
+      day-of-week: MONDAY
+      time: "00:00"
+    limits:
+      - limit: 200000
+      - condition:
+          type: PERMISSION
+          value: economylimit.rule.weekly.vip
+        limit: 500000
+      - condition:
+          type: PERMISSION
+          value: economylimit.rule.weekly.bypass
+        limit: -1

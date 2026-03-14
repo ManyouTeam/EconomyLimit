@@ -1,0 +1,170 @@
+[b][size=18]EconomyLimit[/size][/b]
+
+[b]插件介绍[/b]
+
+[code]EconomyLimit 是一个基于 Vault 经济接口的收益限制插件。
+它通过字节码注入拦截经济插件的加钱方法，统计玩家获得的收益，并按照你配置的规则进行限制。
+
+当玩家在某个规则周期内达到收益上限后，超出的金额不会直接消失，而是自动转入插件提供的虚拟银行。
+玩家可以之后手动提取虚拟银行中的金额，但提取行为依然会计入收益统计，如果当前规则已经超限，则无法提取。[/code]
+
+[b]插件支持[/b]
+
+[list]
+[*]多条收益规则同时生效
+[*]每条规则独立重置周期
+[*]条件化限额
+[*]虚拟银行存取
+[*]多语言显示
+[*]SQLite / MySQL / PostgreSQL / H2 数据库存储
+[*]Paper / Spigot 双平台文本兼容
+[*]display-name 使用 {lang:...} 按玩家语言动态显示
+[/list]
+
+[b]核心机制[/b]
+
+[b]1. 收益统计[/b]
+[code]插件会拦截通过 Vault 发放给玩家的经济收入，并将其计入对应规则的累计收益。[/code]
+
+[b]2. 规则限制[/b]
+[code]每条规则都可以设置一个或多个限额。
+插件会根据玩家满足的条件，决定当前规则使用哪个上限。[/code]
+
+[b]3. 超限处理[/b]
+[code]当任意规则达到上限后，本次超出的金额会自动进入虚拟银行。[/code]
+
+[b]4. 银行提取[/b]
+[code]玩家执行提取时，插件会再次检查当前是否还能计入收益。
+如果提取后会超出限制，则本次提取会被拒绝。[/code]
+
+[b]命令[/b]
+
+[b]玩家命令[/b]
+[list]
+[*][code]/economylimit[/code] 查看自己的银行余额和各规则进度
+[*][code]/economylimit status[/code] 查看自己的银行余额和各规则进度
+[*][code]/economylimit withdraw <金额>[/code] 从虚拟银行提取金额
+[/list]
+
+[b]管理员命令[/b]
+[list]
+[*][code]/economylimit status <玩家>[/code] 查看指定玩家的银行余额和规则进度
+[*][code]/economylimit reload[/code] 重载插件配置和语言文件
+[*][code]/economylimit debug[/code] 查看 Vault 注入状态、桥接命中情况和错误信息
+[/list]
+
+[b]权限[/b]
+[list]
+[*][code]economylimit.withdraw[/code]
+[*][code]economylimit.admin.status[/code]
+[*][code]economylimit.admin.reload[/code]
+[*][code]economylimit.admin.debug[/code]
+[/list]
+
+[b]配置说明[/b]
+
+[b]时区与自动保存[/b]
+[code]timezone: system
+auto-save-minutes: 5
+notify-on-bank-transfer: true[/code]
+
+[b]语言设置[/b]
+[code]config-files:
+  language: zh_CN
+  per-player-language: true
+  force-parse-mini-message: true[/code]
+
+[b]SQLite[/b]
+[code]database:
+  jdbc-url: "jdbc:sqlite:plugins/EconomyLimit/data/economylimit.db"
+  jdbc-class: "org.sqlite.JDBC"
+  properties:
+    user: ""
+    password: ""[/code]
+
+[b]MySQL[/b]
+[code]database:
+  jdbc-url: "jdbc:mysql://127.0.0.1:3306/economylimit?useSSL=false&autoReconnect=true"
+  jdbc-class: "com.mysql.cj.jdbc.Driver"
+  properties:
+    user: "root"
+    password: "123456"[/code]
+
+[b]PostgreSQL[/b]
+[code]database:
+  jdbc-url: "jdbc:postgresql://127.0.0.1:5432/economylimit"
+  jdbc-class: "org.postgresql.Driver"
+  properties:
+    user: "postgres"
+    password: "123456"[/code]
+
+[b]H2[/b]
+[code]database:
+  jdbc-url: "jdbc:h2:./plugins/EconomyLimit/data/economylimit"
+  jdbc-class: "org.h2.Driver"
+  properties:
+    user: "sa"
+    password: ""[/code]
+
+[b]规则配置示例[/b]
+[code]rules:
+  daily:
+    display-name: "{lang:rules.daily.name}"
+    reset:
+      mode: DAILY
+      time: "00:00"
+    limits:
+      - limit: 50000
+      - condition:
+          type: PERMISSION
+          value: economylimit.rule.daily.vip
+        limit: 100000
+      - condition:
+          type: PERMISSION
+          value: economylimit.rule.daily.bypass
+        limit: -1[/code]
+
+[b]条件类型[/b]
+[list]
+[*][code]ANY[/code]
+[*][code]PERMISSION[/code]
+[*][code]WORLD[/code]
+[*][code]PLAYER[/code]
+[*][code]OP[/code]
+[/list]
+
+[b]语言文件中的规则名称[/b]
+[code]rules:
+  daily:
+    name: "每日收益"
+  weekly:
+    name: "每周收益"[/code]
+
+[b]使用流程[/b]
+[list]
+[*]安装 Vault
+[*]安装任意支持 Vault 的经济插件
+[*]将 EconomyLimit 放入服务器插件目录
+[*]启动服务器生成配置文件
+[*]修改数据库、语言和规则配置
+[*]重启服务器或执行 /economylimit reload
+[*]使用 /economylimit debug 检查注入是否成功
+[/list]
+
+[b]调试建议[/b]
+[list]
+[*]检查 Vault 是否正常挂钩到经济插件
+[*]检查 /economylimit debug 中的 Vault provider
+[*]检查注入状态是否成功
+[*]检查 Bridge hits 是否增加
+[*]确认经济插件是否真的通过 Vault.depositPlayer(...) 发钱
+[/list]
+
+[b]适用场景[/b]
+[list]
+[*]限制玩家每日/每周刷钱速度
+[*]将超额收益转入缓冲银行
+[*]配合权限组设置不同收益上限
+[*]多语言服务器中的动态规则展示
+[*]使用 SQL 数据库存储玩家收益和银行数据
+[/list]

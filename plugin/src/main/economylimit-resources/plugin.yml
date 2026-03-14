@@ -1,0 +1,21 @@
+name: EconomyLimit
+version: '1.0.0'
+main: cn.superiormc.economylimit.EconomyLimitPlugin
+api-version: '1.20'
+depend:
+  - Vault
+commands:
+  economylimit:
+    aliases:
+      - elimit
+    description: EconomyLimit main command
+    usage: /economylimit
+permissions:
+  economylimit.withdraw:
+    default: true
+  economylimit.admin.reload:
+    default: op
+  economylimit.admin.status:
+    default: op
+  economylimit.admin.debug:
+    default: op
