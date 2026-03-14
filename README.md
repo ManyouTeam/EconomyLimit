@@ -1,210 +1,48 @@
-# EconomyLimit
+# 💰 Welcoome to EconomyLimit 
 
-## Introduction
+## Introduction ✨
 
-`EconomyLimit` is an earning limit plugin built around the `Vault` economy API.  
-It injects into supported economy providers, tracks player income, and applies configurable earning caps based on your rules.
+`EconomyLimit` is an income limit plugin built for `Vault`-based economy systems.  
+It intercepts money deposits through bytecode injection, tracks how much players earn, and applies configurable earning limits based on your rules.
 
-When a player reaches the cap of any active rule during its reset period, the extra money is not lost.  
-Instead, it is redirected into a virtual bank managed by the plugin.
+When a player reaches the cap of any active rule, the extra money is not lost.  
+Instead, it is automatically moved into a virtual bank 🏦 managed by the plugin.
 
-Players can withdraw money from the virtual bank later, but withdrawals still count as earned money.  
+Players can later withdraw money from the bank, but withdrawals still count as earned income.  
 If a withdrawal would exceed the current earning limit, it will be denied.
 
-The plugin supports:
+## Core Features 🚀
 
-- Multiple earning rules at the same time
-- Independent reset schedules per rule
-- Condition-based limits
-- Virtual bank deposit and withdrawal
-- Multi-language display
-- SQLite / MySQL / PostgreSQL / H2 storage
-- Paper / Spigot text compatibility
-- `{lang:...}` rule names based on player language
+- Supports multiple earning limit rules
+- Each rule can have its own reset time
+- Supports daily, weekly, monthly, and custom reset behavior
+- Dynamic earning caps based on conditions
+- Overflow money is automatically moved into a virtual bank
+- Players can manually withdraw banked money
+- Supports SQLite, MySQL, PostgreSQL, and H2
+- Multi-language support 🌍
+- Rule names can use `{lang:xxx}` for per-language display
+- Compatible with both Paper and Spigot text systems
 
-## Core Features
+## How It Works ⚙️
 
-### 1. Income Tracking
+The plugin monitors income added through `Vault`.  
+Whenever a player receives money, `EconomyLimit` checks the active rules:
 
-The plugin intercepts money added to players through `Vault` and records it for the matching rules.
+1. Whether this income would exceed any configured earning cap
+2. If not, the money is given normally
+3. If yes, the exceeded amount is redirected into the virtual bank
+4. When the player withdraws from the bank later, the same earning checks are applied again
 
-### 2. Rule Limits
+## Use Cases 🎯
 
-Each rule can contain multiple limits.  
-The plugin checks conditions and decides which limit applies to the current player.
+- Limiting how much money players can farm per day
+- Controlling income from jobs, shops, quests, or farms
+- Giving different earning caps to different permission groups
+- Showing localized rule names on multi-language servers
+- Storing overflow income in a buffer bank instead of deleting it
 
-### 3. Overflow Handling
+## Summary 📦
 
-If any rule reaches its cap, the exceeded amount is automatically stored in the virtual bank.
-
-### 4. Withdraw Control
-
-When a player withdraws from the virtual bank, the plugin checks the earning limits again.  
-If the withdrawal would push the player over the cap, it is rejected.
-
-## Commands
-
-### Player Commands
-
-- `/economylimit`
-  View your bank balance and rule progress
-- `/economylimit status`
-  View your bank balance and rule progress
-- `/economylimit withdraw <amount>`
-  Withdraw money from the virtual bank
-
-### Admin Commands
-
-- `/economylimit status <player>`
-  View another player's bank balance and progress
-- `/economylimit reload`
-  Reload config and language files
-- `/economylimit debug`
-  View Vault injection status, bridge hits, and errors
-
-## Permissions
-
-- `economylimit.withdraw`
-- `economylimit.admin.status`
-- `economylimit.admin.reload`
-- `economylimit.admin.debug`
-
-## Configuration
-
-### Timezone and Auto Save
-
-```yml
-timezone: system
-auto-save-minutes: 5
-notify-on-bank-transfer: true
-```
-
-### Language Settings
-
-```yml
-config-files:
-  language: en_US
-  per-player-language: true
-  force-parse-mini-message: true
-```
-
-### Database Settings
-
-#### SQLite
-
-```yml
-database:
-  jdbc-url: "jdbc:sqlite:plugins/EconomyLimit/data/economylimit.db"
-  jdbc-class: "org.sqlite.JDBC"
-  properties:
-    user: ""
-    password: ""
-```
-
-#### MySQL
-
-```yml
-database:
-  jdbc-url: "jdbc:mysql://127.0.0.1:3306/economylimit?useSSL=false&autoReconnect=true"
-  jdbc-class: "com.mysql.cj.jdbc.Driver"
-  properties:
-    user: "root"
-    password: "123456"
-```
-
-#### PostgreSQL
-
-```yml
-database:
-  jdbc-url: "jdbc:postgresql://127.0.0.1:5432/economylimit"
-  jdbc-class: "org.postgresql.Driver"
-  properties:
-    user: "postgres"
-    password: "123456"
-```
-
-#### H2
-
-```yml
-database:
-  jdbc-url: "jdbc:h2:./plugins/EconomyLimit/data/economylimit"
-  jdbc-class: "org.h2.Driver"
-  properties:
-    user: "sa"
-    password: ""
-```
-
-## Rule Example
-
-```yml
-rules:
-  daily:
-    display-name: "{lang:rules.daily.name}"
-    reset:
-      mode: DAILY
-      time: "00:00"
-    limits:
-      - limit: 50000
-      - condition:
-          type: PERMISSION
-          value: economylimit.rule.daily.vip
-        limit: 100000
-      - condition:
-          type: PERMISSION
-          value: economylimit.rule.daily.bypass
-        limit: -1
-```
-
-### Condition Types
-
-- `ANY`
-- `PERMISSION`
-- `WORLD`
-- `PLAYER`
-- `OP`
-
-## Language-Based Rule Names
-
-```yml
-rules:
-  daily:
-    name: "Daily earnings"
-  weekly:
-    name: "Weekly earnings"
-```
-
-If your rule uses:
-
-```yml
-display-name: "{lang:rules.daily.name}"
-```
-
-then different players can see different rule names depending on their selected language.
-
-## Setup Steps
-
-1. Install `Vault`
-2. Install any `Vault`-compatible economy plugin
-3. Put `EconomyLimit` into your plugins folder
-4. Start the server once to generate files
-5. Edit database, language, and rule settings
-6. Restart the server or run `/economylimit reload`
-7. Use `/economylimit debug` to confirm injection works
-
-## Debug Suggestions
-
-If income is not being tracked, check:
-
-- Whether `Vault` is hooked correctly
-- The `Vault provider` shown in `/economylimit debug`
-- Whether injection status is successful
-- Whether `Bridge hits` increases
-- Whether the economy plugin really pays players through `Vault.depositPlayer(...)`
-
-## Use Cases
-
-- Limit daily or weekly money farming
-- Redirect overflow income into a buffer bank
-- Give different earning caps to different permission groups
-- Show rule names in different languages
-- Store earnings and virtual bank data in SQL
+`EconomyLimit` is designed for servers that need tighter control over economic growth.  
+Instead of simply blocking player income, it combines earning caps with a virtual bank system, making economy control more flexible, balanced, and practical for long-term servers.
