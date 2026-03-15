@@ -25,6 +25,7 @@ status:
   bank: "&7虚拟银行: &e{amount}"
   rule: "&7{rule}: &e{current}&7/&6{limit} &8| &7剩余 &a{remaining} &8| &7下次重置 &f{next_reset}"
   rule-unlimited: "&7{rule}: &a无限制"
+  unlimited: "无限制"
   never: "永不"
 
 rules:

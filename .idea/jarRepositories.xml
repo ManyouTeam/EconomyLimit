@@ -17,6 +17,11 @@
       <option name="url" value="https://repo.lanink.cn/repository/maven-releases/" />
     </remote-repository>
     <remote-repository>
+      <option name="id" value="placeholderapi" />
+      <option name="name" value="placeholderapi" />
+      <option name="url" value="https://repo.extendedclip.com/content/repositories/placeholderapi/" />
+    </remote-repository>
+    <remote-repository>
       <option name="id" value="momirealms repo" />
       <option name="name" value="momirealms repo" />
       <option name="url" value="https://repo.momirealms.net/releases/" />

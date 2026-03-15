@@ -3,6 +3,7 @@
 # Read the wiki here: https://github.com/ManyouTeam/EconomyLimit/wiki
 
 timezone: system
+time-format: "yyyy-MM-dd HH:mm"
 auto-save-minutes: 5
 notify-on-bank-transfer: true
 

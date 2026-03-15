@@ -5,12 +5,14 @@ import cn.superiormc.economylimit.database.DatabaseSettings;
 import org.bukkit.configuration.ConfigurationSection;
 
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public record PluginSettings(
         ZoneId zoneId,
+        String timeFormat,
         long autoSaveMinutes,
         boolean notifyOnBankTransfer,
         String defaultLanguage,
@@ -22,6 +24,8 @@ public record PluginSettings(
     public static PluginSettings load(EconomyLimitPlugin plugin) {
         String zoneValue = plugin.getConfig().getString("timezone", "system");
         ZoneId zoneId = "system".equalsIgnoreCase(zoneValue) ? ZoneId.systemDefault() : ZoneId.of(zoneValue);
+        String timeFormat = plugin.getConfig().getString("time-format", "yyyy-MM-dd HH:mm");
+        DateTimeFormatter.ofPattern(timeFormat);
         long autoSaveMinutes = Math.max(1L, plugin.getConfig().getLong("auto-save-minutes", 5L));
         boolean notifyOnBankTransfer = plugin.getConfig().getBoolean("notify-on-bank-transfer", true);
         String defaultLanguage = plugin.getConfig().getString("config-files.language", "zh_CN");
@@ -71,6 +75,7 @@ public record PluginSettings(
 
         return new PluginSettings(
                 zoneId,
+                timeFormat,
                 autoSaveMinutes,
                 notifyOnBankTransfer,
                 defaultLanguage,

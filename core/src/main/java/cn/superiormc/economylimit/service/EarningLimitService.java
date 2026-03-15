@@ -29,12 +29,13 @@ public final class EarningLimitService {
     private final PluginSettings settings;
     private final StorageService storageService;
     private final DecimalFormat moneyFormat = new DecimalFormat("0.##");
-    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private final DateTimeFormatter timeFormatter;
 
     public EarningLimitService(EconomyLimitPlugin plugin, PluginSettings settings, StorageService storageService) {
         this.plugin = plugin;
         this.settings = settings;
         this.storageService = storageService;
+        this.timeFormatter = DateTimeFormatter.ofPattern(settings.timeFormat());
     }
 
     public void initialize() {
@@ -187,6 +188,69 @@ public final class EarningLimitService {
         return lines;
     }
 
+    public synchronized RuleDefinition findRule(String ruleId) {
+        for (RuleDefinition rule : settings.rules()) {
+            if (rule.id().equalsIgnoreCase(ruleId)) {
+                return rule;
+            }
+        }
+        return null;
+    }
+
+    public synchronized String getBankBalance(OfflinePlayer player) {
+        return formatMoney(storageService.getAccount(player.getUniqueId()).getBankBalance());
+    }
+
+    public synchronized String getRuleDisplayName(CommandSender sender, String ruleId) {
+        RuleDefinition rule = findRule(ruleId);
+        if (rule == null) {
+            return "";
+        }
+        return plugin.getLanguageManager().resolveText(sender, rule.displayName());
+    }
+
+    public synchronized String getRuleProgress(OfflinePlayer player, String ruleId) {
+        RuleDefinition rule = findRule(ruleId);
+        if (rule == null) {
+            return "";
+        }
+        return formatMoney(storageService.getAccount(player.getUniqueId()).getRuleProgress(rule.id()));
+    }
+
+    public synchronized String getRuleLimit(OfflinePlayer player, String ruleId) {
+        RuleDefinition rule = findRule(ruleId);
+        if (rule == null) {
+            return "";
+        }
+        double limit = rule.resolveLimit(player, plugin.getConditionManager());
+        return limit < 0D ? getUnlimitedText(player) : formatMoney(limit);
+    }
+
+    public synchronized String getRuleRemaining(OfflinePlayer player, String ruleId) {
+        RuleDefinition rule = findRule(ruleId);
+        if (rule == null) {
+            return "";
+        }
+        double limit = rule.resolveLimit(player, plugin.getConditionManager());
+        if (limit < 0D) {
+            return getUnlimitedText(player);
+        }
+        double current = storageService.getAccount(player.getUniqueId()).getRuleProgress(rule.id());
+        return formatMoney(Math.max(0D, limit - current));
+    }
+
+    public synchronized String getRuleNextReset(CommandSender sender, String ruleId) {
+        RuleDefinition rule = findRule(ruleId);
+        if (rule == null) {
+            return "";
+        }
+        ZonedDateTime nextReset = storageService.getNextReset(rule.id());
+        if (nextReset == null) {
+            return plugin.getLanguageManager().getStringText(sender, "status.never");
+        }
+        return nextReset.withZoneSameInstant(settings.zoneId()).format(timeFormatter);
+    }
+
     public synchronized void checkResets() {
         ZonedDateTime now = ZonedDateTime.now(settings.zoneId());
         for (RuleDefinition rule : settings.rules()) {
@@ -215,5 +279,9 @@ public final class EarningLimitService {
 
     private double normalize(double value) {
         return Double.parseDouble(String.format(Locale.US, "%.2f", value));
+    }
+
+    private String getUnlimitedText(OfflinePlayer player) {
+        return plugin.getLanguageManager().getStringText(player instanceof Player online ? online : null, "status.unlimited");
     }
 }

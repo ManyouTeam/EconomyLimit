@@ -5,6 +5,7 @@ import cn.superiormc.economylimit.inject.VaultInjectionManager;
 import cn.superiormc.economylimit.managers.CommandManager;
 import cn.superiormc.economylimit.managers.ConditionManager;
 import cn.superiormc.economylimit.managers.LanguageManager;
+import cn.superiormc.economylimit.papi.EconomyLimitExpansion;
 import cn.superiormc.economylimit.service.EarningLimitService;
 import cn.superiormc.economylimit.storage.StorageService;
 import cn.superiormc.economylimit.utils.CommonUtil;
@@ -30,8 +31,10 @@ public final class EconomyLimitPlugin extends JavaPlugin {
     private StorageService storageService;
     private EarningLimitService earningLimitService;
     private VaultInjectionManager vaultInjectionManager;
+    private EconomyLimitExpansion placeholderExpansion;
     private BukkitTask resetTask;
     private BukkitTask autoSaveTask;
+    private boolean fullVersion;
 
     public static EconomyLimitPlugin getInstance() {
         return instance;
@@ -42,6 +45,11 @@ public final class EconomyLimitPlugin extends JavaPlugin {
         instance = this;
         saveDefaultConfig();
         methodUtil = createMethodUtil();
+
+        initLicense("cn.superiormc.ultimateshop.UltimateShop",
+                "cn.superiormc.mythicprefixes.MythicPrefixes",
+                "cn.superiormc.mythictotem.MythicTotem",
+                "cn.superiormc.mythicchanger.MythicChanger");
 
         reloadPluginState();
         if (commandManager == null) {
@@ -62,6 +70,10 @@ public final class EconomyLimitPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         stopTasks();
+        if (placeholderExpansion != null) {
+            placeholderExpansion.unregister();
+            placeholderExpansion = null;
+        }
         if (storageService != null && settings != null) {
             storageService.save(settings);
             storageService.close();
@@ -86,6 +98,7 @@ public final class EconomyLimitPlugin extends JavaPlugin {
 
         if (isEnabled()) {
             startTasks();
+            registerPlaceholderExpansion();
         }
     }
 
@@ -175,5 +188,36 @@ public final class EconomyLimitPlugin extends JavaPlugin {
         } catch (Throwable throwable) {
             throw new IllegalStateException("Failed to initialize Spigot text mode.", throwable);
         }
+    }
+
+    public void initLicense(String... classNames) {
+        for (String name : classNames) {
+            try {
+                Class<?> clazz = Class.forName(name);
+                boolean value = clazz.getField("freeVersion").getBoolean(null);
+                if (!value) {
+                    fullVersion = true;
+                    TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " §cFULL license active by " + clazz.getSimpleName() + " plugin, thanks for your support and we hope you have good experience with this plugin!");
+                    break;
+                }
+            } catch (Throwable e) {
+                // ignored
+            }
+        }
+    }
+
+    private void registerPlaceholderExpansion() {
+        if (!CommonUtil.checkPluginLoad("PlaceholderAPI")) {
+            return;
+        }
+        if (!fullVersion) {
+            return;
+        }
+        if (placeholderExpansion == null) {
+            placeholderExpansion = new EconomyLimitExpansion(this);
+        } else {
+            placeholderExpansion.unregister();
+        }
+        placeholderExpansion.register();
     }
 }
