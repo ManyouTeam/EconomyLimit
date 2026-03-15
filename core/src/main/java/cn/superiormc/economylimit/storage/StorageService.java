@@ -22,6 +22,7 @@ public final class StorageService {
     private final File legacyDataFile;
     private final Map<UUID, PlayerAccount> accounts = new ConcurrentHashMap<>();
     private final Map<String, ZonedDateTime> nextResets = new ConcurrentHashMap<>();
+    private volatile boolean closed = false;
 
     public StorageService(EconomyLimitPlugin plugin, DatabaseSettings databaseSettings) {
         this.plugin = plugin;
@@ -30,6 +31,7 @@ public final class StorageService {
     }
 
     public void load(PluginSettings settings) {
+        closed = false;
         try {
             database.onInit();
             if (database.isEmpty() && legacyDataFile.exists()) {
@@ -45,6 +47,9 @@ public final class StorageService {
     }
 
     public void save(PluginSettings settings) {
+        if (closed) {
+            return;
+        }
         try {
             database.saveAll(accounts, nextResets);
         } catch (SQLException exception) {
@@ -54,6 +59,9 @@ public final class StorageService {
     }
 
     public void close() {
+        closed = true;
+        accounts.clear();
+        nextResets.clear();
         database.onClose();
     }
 
@@ -116,6 +124,9 @@ public final class StorageService {
     }
 
     public void setNextReset(String ruleId, ZonedDateTime nextReset) {
+        if (closed) {
+            return;
+        }
         if (nextReset == null) {
             nextResets.remove(ruleId);
             try {
@@ -134,6 +145,9 @@ public final class StorageService {
     }
 
     public void resetRule(String ruleId) {
+        if (closed) {
+            return;
+        }
         for (PlayerAccount account : accounts.values()) {
             account.clearRuleProgress(ruleId);
         }
@@ -145,6 +159,9 @@ public final class StorageService {
     }
 
     public void cleanup(UUID playerId) {
+        if (closed) {
+            return;
+        }
         PlayerAccount account = accounts.get(playerId);
         if (account == null) {
             return;

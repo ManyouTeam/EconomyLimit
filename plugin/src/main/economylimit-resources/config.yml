@@ -20,7 +20,7 @@ database:
 
 rules:
   daily:
-    display-name: "每日收益"
+    display-name: "{lang:rules.daily.name}"
     reset:
       mode: DAILY
       time: "00:00"
@@ -36,7 +36,7 @@ rules:
         limit: -1
 
   weekly:
-    display-name: "每周收益"
+    display-name: "{lang:rules.weekly.name}"
     reset:
       mode: WEEKLY
       day-of-week: MONDAY

@@ -154,6 +154,7 @@ public final class EconomyLimitPlugin extends JavaPlugin {
             autoSaveTask.cancel();
             autoSaveTask = null;
         }
+        Bukkit.getScheduler().cancelTasks(this);
     }
 
     private SpecialMethodUtil createMethodUtil() {
