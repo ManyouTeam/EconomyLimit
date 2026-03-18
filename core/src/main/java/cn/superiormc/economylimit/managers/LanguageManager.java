@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -22,12 +23,15 @@ public final class LanguageManager {
 
     private static final Pattern LANG_PATTERN = Pattern.compile("\\{lang:([^}]+)}");
 
+    public static LanguageManager languageManager;
+
     private final EconomyLimitPlugin plugin;
     private final PluginSettings settings;
     private final Map<String, YamlConfiguration> languageFiles = new HashMap<>();
     private YamlConfiguration fallbackLanguage;
 
     public LanguageManager(EconomyLimitPlugin plugin, PluginSettings settings) {
+        languageManager = this;
         this.plugin = plugin;
         this.settings = settings;
         initLanguages();
@@ -52,12 +56,22 @@ public final class LanguageManager {
     }
 
     public List<String> getStringListText(CommandSender sender, String path) {
-        YamlConfiguration configuration = resolveLanguage(sender instanceof Player player ? player : null);
+        Player player = sender instanceof Player online ? online : null;
+        String languageKey = getStorageLanguageKey(player);
+        YamlConfiguration configuration = resolveLanguage(player);
         List<String> lines = configuration.getStringList(path);
         if (!lines.isEmpty()) {
             return lines;
         }
-        return fallbackLanguage == null ? List.of() : fallbackLanguage.getStringList(path);
+        if (fallbackLanguage == null) {
+            return List.of();
+        }
+        List<String> fallbackLines = fallbackLanguage.getStringList(path);
+        if (!fallbackLines.isEmpty() && configuration != fallbackLanguage) {
+            configuration.set(path, fallbackLines);
+            saveLanguageFile(languageKey, configuration);
+        }
+        return fallbackLines;
     }
 
     public String resolveText(CommandSender sender, String text) {
@@ -67,11 +81,9 @@ public final class LanguageManager {
     private void initLanguages() {
         File languageFolder = new File(plugin.getDataFolder(), "languages");
         if (!languageFolder.exists() && !languageFolder.mkdirs()) {
-            TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " §cCould not create languages folder.");
+            TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &cCould not create languages folder.");
         }
 
-        saveLanguageResource("en_US.yml");
-        saveLanguageResource("zh_CN.yml");
         loadFallbackLanguage();
 
         File[] files = languageFolder.listFiles((dir, name) -> name.endsWith(".yml"));
@@ -82,14 +94,10 @@ public final class LanguageManager {
             String name = file.getName().substring(0, file.getName().length() - 4).toLowerCase(Locale.ROOT);
             languageFiles.put(name, YamlConfiguration.loadConfiguration(file));
         }
-    }
 
-    private void saveLanguageResource(String fileName) {
-        File target = new File(plugin.getDataFolder(), "languages/" + fileName);
-        if (target.exists()) {
-            return;
+        if (!languageFiles.containsKey("en_us") && fallbackLanguage != null) {
+            languageFiles.put("en_us", fallbackLanguage);
         }
-        plugin.saveResource("languages/" + fileName, false);
     }
 
     private void loadFallbackLanguage() {
@@ -99,27 +107,44 @@ public final class LanguageManager {
                 return;
             }
             File tempFile = File.createTempFile("economylimit-language", ".yml");
-            Files.copy(inputStream, tempFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             fallbackLanguage = YamlConfiguration.loadConfiguration(tempFile);
             if (!tempFile.delete()) {
                 tempFile.deleteOnExit();
             }
         } catch (IOException exception) {
             fallbackLanguage = new YamlConfiguration();
-            TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " §cFailed to load fallback language: " + exception.getMessage());
+            TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &cFailed to load fallback language: " + exception.getMessage());
         }
     }
 
     private String getMessage(Player player, String path) {
+        String languageKey = getStorageLanguageKey(player);
         YamlConfiguration configuration = resolveLanguage(player);
         String text = configuration.getString(path);
         if (text != null) {
             return text;
         }
-        return fallbackLanguage == null ? null : fallbackLanguage.getString(path);
+        if (fallbackLanguage == null) {
+            return null;
+        }
+        text = fallbackLanguage.getString(path);
+        if (text != null && configuration != fallbackLanguage) {
+            configuration.set(path, text);
+            saveLanguageFile(languageKey, configuration);
+        }
+        return text;
     }
 
     private YamlConfiguration resolveLanguage(Player player) {
+        String languageKey = getLanguageKey(player);
+        return languageFiles.getOrDefault(
+                languageKey,
+                languageFiles.getOrDefault(settings.defaultLanguage().toLowerCase(Locale.ROOT), fallbackLanguage)
+        );
+    }
+
+    private String getLanguageKey(Player player) {
         String languageKey = settings.defaultLanguage().toLowerCase(Locale.ROOT);
         if (player != null && settings.perPlayerLanguage()) {
             try {
@@ -128,10 +153,24 @@ public final class LanguageManager {
                 languageKey = settings.defaultLanguage().toLowerCase(Locale.ROOT);
             }
         }
-        return languageFiles.getOrDefault(
-                languageKey,
-                languageFiles.getOrDefault(settings.defaultLanguage().toLowerCase(Locale.ROOT), fallbackLanguage)
-        );
+        return languageKey;
+    }
+
+    private String getStorageLanguageKey(Player player) {
+        String languageKey = getLanguageKey(player);
+        if (languageFiles.containsKey(languageKey)) {
+            return languageKey;
+        }
+        return settings.defaultLanguage().toLowerCase(Locale.ROOT);
+    }
+
+    private void saveLanguageFile(String languageKey, YamlConfiguration configuration) {
+        File file = new File(plugin.getDataFolder(), "languages/" + languageKey + ".yml");
+        try {
+            configuration.save(file);
+        } catch (IOException exception) {
+            TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &cFailed to save language file " + file.getName() + ": " + exception.getMessage());
+        }
     }
 
     private String resolveText(Player player, String text, int depth) {

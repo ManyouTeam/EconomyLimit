@@ -1,11 +1,14 @@
 package cn.superiormc.economylimit.utils;
 
 import cn.superiormc.economylimit.EconomyLimitPlugin;
-import org.bukkit.Bukkit;
+import me.clip.placeholderapi.PlaceholderAPI;
+import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.awt.Color;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -68,28 +71,26 @@ public final class TextUtil {
         return "§x§9§8§F§B§9§8[EconomyLimit]";
     }
 
-    public static void sendMessage(CommandSender sender, String rawText) {
-        if (rawText == null || rawText.isEmpty()) {
-            return;
-        }
-        CommandSender actualSender = sender == null ? Bukkit.getConsoleSender() : sender;
-        EconomyLimitPlugin plugin = EconomyLimitPlugin.getInstance();
-        if (actualSender instanceof Player player && plugin != null && plugin.getMethodUtil() != null) {
-            plugin.getMethodUtil().sendChat(player, rawText);
-            return;
-        }
-        String parsed = plugin != null && plugin.getMethodUtil() != null
-                ? plugin.getMethodUtil().legacyParse(rawText)
-                : colorize(rawText);
-        actualSender.sendMessage(parsed);
-    }
-
     public static String parse(String text) {
         EconomyLimitPlugin plugin = EconomyLimitPlugin.getInstance();
         if (plugin == null || plugin.getMethodUtil() == null) {
             return colorize(text);
         }
         return plugin.getMethodUtil().legacyParse(text);
+    }
+
+    public static String parse(String text, Player player) {
+        return parse(withPAPI(text, player));
+    }
+
+    public static String withPAPI(String text, Player player) {
+        if (text == null) {
+            return "";
+        }
+        if (player != null && text.contains("%") && CommonUtil.checkPluginLoad("PlaceholderAPI")) {
+            return PlaceholderAPI.setPlaceholders(player, text);
+        }
+        return text;
     }
 
     public static String colorize(String input) {
@@ -165,6 +166,176 @@ public final class TextUtil {
         );
     }
 
+    public static void sendMessage(CommandSender sender, String rawText) {
+
+        EconomyLimitPlugin plugin = EconomyLimitPlugin.getInstance();
+        if (plugin == null || plugin.getMethodUtil() == null) {
+            return;
+        }
+
+        Player player = null;
+        if (sender instanceof Player) {
+            player = (Player) sender;
+        }
+
+        if (!rawText.contains("[")) {
+            plugin.getMethodUtil().sendChat(player, rawText);
+            return;
+        }
+
+        boolean sentAny = false;
+
+        for (String message : parseSimpleTag(rawText, "message")) {
+            plugin.getMethodUtil().sendChat(player, withPAPI(message, player));
+            sentAny = true;
+        }
+
+        for (TagResult tag : parseArgTag(rawText, "title")) {
+            TitleData data = parseTitle(tag);
+            plugin.getMethodUtil().sendTitle(
+                    player,
+                    withPAPI(data.title(), player),
+                    withPAPI(data.subTitle(), player),
+                    data.fadeIn(),
+                    data.stay(),
+                    data.fadeOut()
+            );
+            sentAny = true;
+        }
+
+        for (String message : parseSimpleTag(rawText, "actionbar")) {
+            plugin.getMethodUtil().sendActionBar(player, withPAPI(message, player));
+            sentAny = true;
+        }
+
+        for (TagResult tag : parseArgTag(rawText, "bossbar")) {
+            BossBarData data = parseBossBar(tag);
+            plugin.getMethodUtil().sendBossBar(
+                    player,
+                    withPAPI(data.title(), player),
+                    data.progress(),
+                    data.color(),
+                    data.style()
+            );
+            sentAny = true;
+        }
+
+        for (TagResult tag : parseArgTag(rawText, "sound")) {
+            SoundData data = parseSound(tag);
+            if (data.sound() != null) {
+                player.playSound(player.getLocation(), data.sound(), data.volume(), data.pitch());
+                sentAny = true;
+            }
+        }
+
+        // 兜底
+        if (!sentAny) {
+            plugin.getMethodUtil().sendChat(player, rawText);
+        }
+    }
+
+    private static List<String> parseSimpleTag(String text, String tag) {
+        List<String> list = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\\[" + tag + "]([\\s\\S]*?)\\[/" + tag + "]", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            list.add(matcher.group(1).trim());
+        }
+        return list;
+    }
+
+    private static List<TagResult> parseArgTag(String text, String tag) {
+        List<TagResult> list = new ArrayList<>();
+        Pattern pattern = Pattern.compile("\\[" + tag + "(?:=([^\\]]+))?]([\\s\\S]*?)\\[/" + tag + "]", Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(text);
+        while (matcher.find()) {
+            list.add(new TagResult(matcher.group(1), matcher.group(2).trim()));
+        }
+        return list;
+    }
+
+    private static TitleData parseTitle(TagResult tag) {
+        int fadeIn = 10;
+        int stay = 70;
+        int fadeOut = 20;
+
+        if (tag.args() != null) {
+            String[] args = tag.args().split(",");
+            if (args.length == 3) {
+                fadeIn = parseInt(args[0], fadeIn);
+                stay = parseInt(args[1], stay);
+                fadeOut = parseInt(args[2], fadeOut);
+            }
+        }
+
+        String[] parts = tag.content().split(";;", 2);
+        String title = parts[0];
+        String subTitle = parts.length > 1 ? parts[1] : "";
+        return new TitleData(title, subTitle, fadeIn, stay, fadeOut);
+    }
+
+    private static BossBarData parseBossBar(TagResult tag) {
+        String color = "WHITE";
+        String style = "SOLID";
+        float progress = 1.0F;
+
+        if (tag.args() != null) {
+            String[] args = tag.args().split(",");
+            if (args.length > 0 && !args[0].isBlank()) {
+                color = args[0].trim();
+            }
+            if (args.length > 1 && !args[1].isBlank()) {
+                style = args[1].trim();
+            }
+            if (args.length > 2) {
+                progress = parseFloat(args[2], progress);
+            }
+        }
+
+        return new BossBarData(tag.content(), progress, color, style);
+    }
+
+    private static SoundData parseSound(TagResult tag) {
+        Sound sound = null;
+        float volume = 1F;
+        float pitch = 1F;
+
+        if (tag.args() != null) {
+            String[] args = tag.args().split(",");
+            if (args.length > 0) {
+                try {
+                    sound = Sound.valueOf(args[0].trim().toUpperCase());
+                } catch (IllegalArgumentException ignored) {
+                    sound = null;
+                }
+            }
+            if (args.length > 1) {
+                volume = parseFloat(args[1], volume);
+            }
+            if (args.length > 2) {
+                pitch = parseFloat(args[2], pitch);
+            }
+        }
+
+        return new SoundData(sound, volume, pitch);
+    }
+
+    private static int parseInt(String value, int defaultValue) {
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
+    }
+
+    private static float parseFloat(String value, float defaultValue) {
+        try {
+            return Float.parseFloat(value.trim());
+        } catch (NumberFormatException exception) {
+            return defaultValue;
+        }
+    }
+
     private static String applyGradients(String input, boolean supportHex) {
         Matcher matcher = GRADIENT_PATTERN.matcher(input);
         StringBuilder buffer = new StringBuilder();
@@ -186,11 +357,11 @@ public final class TextUtil {
         Color end = Color.decode("#" + endHex);
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < text.length(); i++) {
-            float ratio = text.length() == 1 ? 0f : (float) i / (text.length() - 1);
+            float ratio = text.length() == 1 ? 0F : (float) i / (text.length() - 1);
             int red = (int) (start.getRed() + ratio * (end.getRed() - start.getRed()));
             int green = (int) (start.getGreen() + ratio * (end.getGreen() - start.getGreen()));
             int blue = (int) (start.getBlue() + ratio * (end.getBlue() - start.getBlue()));
-            builder.append("§x").append(toMinecraftHex(String.format("%02x%02x%02x", red, green, blue))).append(text.charAt(i));
+            builder.append("\u00A7x").append(toMinecraftHex(String.format("%02x%02x%02x", red, green, blue))).append(text.charAt(i));
         }
         return builder.toString();
     }
@@ -203,11 +374,11 @@ public final class TextUtil {
         Color end = Color.decode("#" + endHex);
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < text.length(); i++) {
-            float ratio = text.length() == 1 ? 0f : (float) i / (text.length() - 1);
+            float ratio = text.length() == 1 ? 0F : (float) i / (text.length() - 1);
             int red = (int) (start.getRed() + ratio * (end.getRed() - start.getRed()));
             int green = (int) (start.getGreen() + ratio * (end.getGreen() - start.getGreen()));
             int blue = (int) (start.getBlue() + ratio * (end.getBlue() - start.getBlue()));
-            builder.append('§').append(getClosestLegacyColor(String.format("%02x%02x%02x", red, green, blue))).append(text.charAt(i));
+            builder.append('\u00A7').append(getClosestLegacyColor(String.format("%02x%02x%02x", red, green, blue))).append(text.charAt(i));
         }
         return builder.toString();
     }
@@ -215,7 +386,7 @@ public final class TextUtil {
     private static String toMinecraftHex(String hex) {
         StringBuilder builder = new StringBuilder();
         for (char c : hex.toCharArray()) {
-            builder.append('§').append(c);
+            builder.append('\u00A7').append(c);
         }
         return builder.toString();
     }
@@ -239,5 +410,17 @@ public final class TextUtil {
         int g = c1.getGreen() - c2.getGreen();
         int b = c1.getBlue() - c2.getBlue();
         return 0.3 * r * r + 0.59 * g * g + 0.11 * b * b;
+    }
+
+    private record TagResult(String args, String content) {
+    }
+
+    private record TitleData(String title, String subTitle, int fadeIn, int stay, int fadeOut) {
+    }
+
+    private record BossBarData(String title, float progress, String color, String style) {
+    }
+
+    private record SoundData(Sound sound, float volume, float pitch) {
     }
 }

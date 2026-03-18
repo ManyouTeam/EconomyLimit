@@ -1,5 +1,5 @@
 name: EconomyLimit
-version: '1.0.1'
+version: '1.0.2'
 main: cn.superiormc.economylimit.EconomyLimitPlugin
 api-version: '1.20'
 depend:

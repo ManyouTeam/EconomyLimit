@@ -4,8 +4,11 @@ import cn.superiormc.economylimit.config.PluginSettings;
 import cn.superiormc.economylimit.inject.VaultInjectionManager;
 import cn.superiormc.economylimit.managers.CommandManager;
 import cn.superiormc.economylimit.managers.ConditionManager;
+import cn.superiormc.economylimit.managers.ConfigManager;
+import cn.superiormc.economylimit.managers.HookManager;
+import cn.superiormc.economylimit.managers.InitManager;
 import cn.superiormc.economylimit.managers.LanguageManager;
-import cn.superiormc.economylimit.papi.EconomyLimitExpansion;
+import cn.superiormc.economylimit.managers.TaskManager;
 import cn.superiormc.economylimit.service.EarningLimitService;
 import cn.superiormc.economylimit.storage.StorageService;
 import cn.superiormc.economylimit.utils.CommonUtil;
@@ -17,23 +20,21 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitTask;
 
 public final class EconomyLimitPlugin extends JavaPlugin {
 
     private static EconomyLimitPlugin instance;
 
-    private PluginSettings settings;
+    private InitManager initManager;
+    private ConfigManager configManager;
+    private HookManager hookManager;
+    private TaskManager taskManager;
     private ConditionManager conditionManager;
     private LanguageManager languageManager;
     private CommandManager commandManager;
     private SpecialMethodUtil methodUtil;
     private StorageService storageService;
     private EarningLimitService earningLimitService;
-    private VaultInjectionManager vaultInjectionManager;
-    private EconomyLimitExpansion placeholderExpansion;
-    private BukkitTask resetTask;
-    private BukkitTask autoSaveTask;
     private boolean fullVersion;
 
     public static EconomyLimitPlugin getInstance() {
@@ -43,71 +44,98 @@ public final class EconomyLimitPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
-        saveDefaultConfig();
+        initManager = new InitManager(this);
         methodUtil = createMethodUtil();
 
-        initLicense("cn.superiormc.ultimateshop.UltimateShop",
+        initLicense(
+                "cn.superiormc.ultimateshop.UltimateShop",
                 "cn.superiormc.mythicprefixes.MythicPrefixes",
                 "cn.superiormc.mythictotem.MythicTotem",
-                "cn.superiormc.mythicchanger.MythicChanger");
+                "cn.superiormc.mythicchanger.MythicChanger"
+        );
 
+        configManager = new ConfigManager(this);
+        hookManager = new HookManager(this);
+        taskManager = new TaskManager(this);
         reloadPluginState();
+
         if (commandManager == null) {
             commandManager = new CommandManager(this);
         }
 
-        vaultInjectionManager = new VaultInjectionManager(this);
-        if (!vaultInjectionManager.start()) {
+        if (!hookManager.initVaultHook()) {
             Bukkit.getPluginManager().disablePlugin(this);
             return;
         }
 
-        TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &fDatabase: &e" + settings.databaseSettings().jdbcUrl());
-        TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &fRules loaded: &e" + settings.rules().size());
+        TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &fDatabase: &e" + getSettings().databaseSettings().jdbcUrl());
+        TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &fRules loaded: &e" + getSettings().rules().size());
         TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &fPlugin is loaded. Author: PQguanfang.");
     }
 
     @Override
     public void onDisable() {
-        stopTasks();
-        if (placeholderExpansion != null) {
-            placeholderExpansion.unregister();
-            placeholderExpansion = null;
+        if (taskManager != null) {
+            taskManager.cancelTask();
         }
-        if (storageService != null && settings != null) {
-            storageService.save(settings);
+        if (hookManager != null) {
+            hookManager.shutdown();
+        }
+        if (storageService != null && getSettings() != null) {
+            storageService.save(getSettings());
             storageService.close();
         }
     }
 
     public void reloadPluginState() {
-        stopTasks();
-        if (storageService != null && settings != null) {
-            storageService.save(settings);
+        if (taskManager != null) {
+            taskManager.cancelTask();
+        }
+        if (storageService != null && getSettings() != null) {
+            storageService.save(getSettings());
             storageService.close();
         }
 
-        reloadConfig();
-        settings = PluginSettings.load(this);
+        configManager.reload();
         conditionManager = new ConditionManager();
-        languageManager = new LanguageManager(this, settings);
-        storageService = new StorageService(this, settings.databaseSettings());
-        storageService.load(settings);
-        earningLimitService = new EarningLimitService(this, settings, storageService);
+        languageManager = new LanguageManager(this, getSettings());
+        storageService = new StorageService(this, getSettings().databaseSettings());
+        storageService.load(getSettings());
+        earningLimitService = new EarningLimitService(this, getSettings(), storageService);
         earningLimitService.initialize();
 
         if (isEnabled()) {
-            startTasks();
-            registerPlaceholderExpansion();
+            taskManager.reload();
+            hookManager.reloadPlaceholderHook();
         }
     }
 
     public PluginSettings getSettings() {
-        return settings;
+        return configManager == null ? null : configManager.getSettings();
+    }
+
+    public InitManager getInitManager() {
+        return initManager;
+    }
+
+    public ConfigManager getConfigManager() {
+        return configManager;
+    }
+
+    public HookManager getHookManager() {
+        return hookManager;
+    }
+
+    public TaskManager getTaskManager() {
+        return taskManager;
     }
 
     public EarningLimitService getEarningLimitService() {
         return earningLimitService;
+    }
+
+    public StorageService getStorageService() {
+        return storageService;
     }
 
     public ConditionManager getConditionManager() {
@@ -126,8 +154,12 @@ public final class EconomyLimitPlugin extends JavaPlugin {
         return methodUtil;
     }
 
+    public boolean isFullVersion() {
+        return fullVersion;
+    }
+
     public VaultInjectionManager getVaultInjectionManager() {
-        return vaultInjectionManager;
+        return hookManager == null ? null : hookManager.getVaultInjectionManager();
     }
 
     public EconomyResponse depositToPlayer(Player player, double amount) {
@@ -141,33 +173,6 @@ public final class EconomyLimitPlugin extends JavaPlugin {
     public Economy getEconomy() {
         RegisteredServiceProvider<Economy> registration = getServer().getServicesManager().getRegistration(Economy.class);
         return registration == null ? null : registration.getProvider();
-    }
-
-    private void startTasks() {
-        stopTasks();
-        long autosaveTicks = settings.autoSaveMinutes() * 60L * 20L;
-        resetTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
-            if (earningLimitService != null) {
-                earningLimitService.checkResets();
-            }
-        }, 20L, 20L * 60L);
-        autoSaveTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
-            if (storageService != null && settings != null) {
-                storageService.save(settings);
-            }
-        }, autosaveTicks, autosaveTicks);
-    }
-
-    private void stopTasks() {
-        if (resetTask != null) {
-            resetTask.cancel();
-            resetTask = null;
-        }
-        if (autoSaveTask != null) {
-            autoSaveTask.cancel();
-            autoSaveTask = null;
-        }
-        Bukkit.getScheduler().cancelTasks(this);
     }
 
     private SpecialMethodUtil createMethodUtil() {
@@ -191,33 +196,19 @@ public final class EconomyLimitPlugin extends JavaPlugin {
     }
 
     public void initLicense(String... classNames) {
+        fullVersion = false;
         for (String name : classNames) {
             try {
                 Class<?> clazz = Class.forName(name);
                 boolean value = clazz.getField("freeVersion").getBoolean(null);
                 if (!value) {
                     fullVersion = true;
-                    TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " §cFULL license active by " + clazz.getSimpleName() + " plugin, thanks for your support and we hope you have good experience with this plugin!");
+                    TextUtil.sendMessage(null, TextUtil.pluginPrefix() + " &cFULL license active by " + clazz.getSimpleName() + " plugin, thanks for your support and we hope you have good experience with this plugin!");
                     break;
                 }
-            } catch (Throwable e) {
+            } catch (Throwable ignored) {
                 // ignored
             }
         }
-    }
-
-    private void registerPlaceholderExpansion() {
-        if (!CommonUtil.checkPluginLoad("PlaceholderAPI")) {
-            return;
-        }
-        if (!fullVersion) {
-            return;
-        }
-        if (placeholderExpansion == null) {
-            placeholderExpansion = new EconomyLimitExpansion(this);
-        } else {
-            placeholderExpansion.unregister();
-        }
-        placeholderExpansion.register();
     }
 }
