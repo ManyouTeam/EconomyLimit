@@ -6,7 +6,7 @@
     <parent>
         <groupId>cn.superiormc.economylimit</groupId>
         <artifactId>EconomyLimit-parent</artifactId>
-        <version>1.0.2</version>
+        <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -33,7 +33,7 @@
     </dependencies>
 
     <build>
-        <finalName>${project.name}-${project.version}</finalName>
+        <finalName>${name}-${revision}</finalName>
         <resources>
             <resource>
                 <directory>src/main/economylimit-resources</directory>

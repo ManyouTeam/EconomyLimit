@@ -8,7 +8,7 @@ auto-save-minutes: 5
 notify-on-bank-transfer: true
 
 config-files:
-  language: zh_CN
+  language: en_US
   per-player-language: true
   force-parse-mini-message: true
 
